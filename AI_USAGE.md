@@ -16,3 +16,4 @@ AI 를 전혀 쓰지 않았다면 표를 지우고 "이 과제에서 생성형 A
 | 2026-11-09 | Claude Code | 기타 | 과제 명세(OSS_PROJECT1.md)를 읽고 F1–F5 구현 방법과 Git 관리 순서를 정리해 달라고 요청. pygame 설치 후 스타터 코드가 실행되는지 테스트 | 구현 순서와 브랜치·커밋 계획만 참고. pygame 설치와 실행은 직접 확인 |
 | 2026-11-10 | Claude Code | 기타 | GitHub Desktop 연동, 원격 저장소 연결, 커밋·브랜치 이름 규칙 확인, .gitignore 작성 | 안내받은 순서대로 Git Bash와 GitHub Desktop에서 직접 실행. .gitignore는 제안 내용을 그대로 사용 |
 | 2026-11-10 | Claude Code | F1 | Player.update 의 좌우 방향키 이동과 화면 좌우 끝 제한 구현을 요청 | 제안받은 코드를 그대로 반영(이동 2줄, max/min 으로 rect.left·rect.right 제한). 별도 테스트 스크립트로 경계 동작을 확인한 뒤 직접 커밋 |
+| 2026-11-11 | Claude Code | F2 | Player.shoot 의 총알 생성, Bullet.update 의 위로 이동과 화면 밖 제거, handle_events 의 스페이스 키 발사(게임 오버 중 제외) 구현을 요청 | 제안받은 코드를 그대로 반영(shoot 1줄, update 3줄, 스페이스 키 분기 4줄). 헤드리스 테스트로 발사·이동·제거·게임 오버 중 발사 불가를 확인한 뒤 세 커밋으로 나눠 직접 커밋 |
