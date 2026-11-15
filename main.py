@@ -103,8 +103,7 @@ class Game:
         killed = {enemy for enemies in hits.values() for enemy in enemies}  # 총알 둘이 한 적을 맞혀도 한 번만 셈
         self.score += len(killed) * SCORE_PER_ENEMY
 
-        # TODO(F4): 적이 플레이어에 닿으면 그 적을 없애고 생명(self.lives)을 1 줄일 것.
-        #           힌트: pygame.sprite.spritecollide
+        self.lives -= len(pygame.sprite.spritecollide(self.player, self.enemies, True))
 
         # 화면 아래로 지나간 적은 없앨 것.
         for enemy in list(self.enemies):
