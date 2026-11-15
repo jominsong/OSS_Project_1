@@ -17,3 +17,4 @@ AI 를 전혀 쓰지 않았다면 표를 지우고 "이 과제에서 생성형 A
 | 2026-11-10 | Claude Code | 기타 | GitHub Desktop 연동, 원격 저장소 연결, 커밋·브랜치 이름 규칙 확인, .gitignore 작성 | 안내받은 순서대로 Git Bash와 GitHub Desktop에서 직접 실행. .gitignore는 제안 내용을 그대로 사용 |
 | 2026-11-10 | Claude Code | F1 | Player.update 의 좌우 방향키 이동과 화면 좌우 끝 제한 구현을 요청 | 제안받은 코드를 그대로 반영(이동 2줄, max/min 으로 rect.left·rect.right 제한). 별도 테스트 스크립트로 경계 동작을 확인한 뒤 직접 커밋 |
 | 2026-11-11 | Claude Code | F2 | Player.shoot 의 총알 생성, Bullet.update 의 위로 이동과 화면 밖 제거, handle_events 의 스페이스 키 발사(게임 오버 중 제외) 구현을 요청 | 제안받은 코드를 그대로 반영(shoot 1줄, update 3줄, 스페이스 키 분기 4줄). 헤드리스 테스트로 발사·이동·제거·게임 오버 중 발사 불가를 확인한 뒤 세 커밋으로 나눠 직접 커밋 |
+| 2026-11-15 | Claude Code | F3 | update 에서 groupcollide 로 총알과 적 충돌 시 둘 다 제거하고 SCORE_PER_ENEMY 점을 더하는 코드, draw 에서 왼쪽 위에 `SCORE: N` 표시 구현을 요청 | 제안받은 코드를 그대로 반영(충돌 3줄, 표시 1줄). 총알 두 발이 한 적을 맞혀도 점수가 한 번만 들어가도록 적을 집합으로 세는 부분이 포함됨. 헤드리스 테스트로 명중·빗나감·동시 명중·표시 위치를 확인한 뒤 두 커밋으로 나눠 직접 커밋 |
