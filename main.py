@@ -166,7 +166,8 @@ class Game:
         cx = WIDTH // 2
         self.draw_text("GAME OVER", self.big_font, RED, center=(cx, HEIGHT // 2 - 40))
         self.draw_text(f"SCORE: {self.score}", self.font, WHITE, center=(cx, HEIGHT // 2 + 20))
-        # TODO(F5): 최고 점수("HIGH SCORE: 300")와 재시작 안내("Press R to restart")도 표시할 것.
+        self.draw_text(f"HIGH SCORE: {self.high_score}", self.font, YELLOW, center=(cx, HEIGHT // 2 + 60))
+        self.draw_text("Press R to restart", self.font, WHITE, center=(cx, HEIGHT // 2 + 120))
 
     # ---------------- 게임 루프 ----------------
     def step(self):
