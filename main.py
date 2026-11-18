@@ -1,4 +1,5 @@
 """종스크롤 슈팅 게임. 실행: python main.py"""
+import random
 import sys
 
 import pygame
@@ -6,9 +7,11 @@ import pygame
 from settings import (
     WIDTH, HEIGHT, FPS, TITLE, HIGHSCORE_FILE,
     ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS, POWER_MAX, BULLET_SPREAD,
+    WAVE_CHANCE_BASE, WAVE_CHANCE_PER_POWER, WAVE_CHANCE_MAX,
     WHITE, YELLOW, RED, HUD_SHADE, GAME_OVER_SHADE,
 )
 from entities import Background, Player, Enemy
+from enemies import WaveEnemy
 
 SPAWN_ENEMY = pygame.USEREVENT + 1  # "적을 하나 만들 때가 됐다"는 타이머 이벤트
 PAUSE_ITEMS = ("Resume", "Main Menu", "Quit")  # 일시정지 메뉴 항목 (기본 글꼴은 한글이 안 나와서 영어)
@@ -79,9 +82,7 @@ class Game:
             elif self.paused:
                 self.handle_pause_event(event)  # 일시정지 중 입력은 여기서만 처리 (적 생성·발사 없음)
             elif event.type == SPAWN_ENEMY and not self.game_over:
-                enemy = Enemy()
-                self.enemies.add(enemy)
-                self.all_sprites.add(enemy)
+                self.spawn_enemy()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if self.game_over:
@@ -96,6 +97,13 @@ class Game:
                     self.fire_cooldown = FIRE_INTERVAL
                 elif event.key == pygame.K_r and self.game_over:
                     self.reset()
+
+    def spawn_enemy(self):
+        """적을 하나 만든다. 파워업 레벨이 높을수록 좌우로 흔들리는 적이 나올 확률이 커진다."""
+        wave_chance = min(WAVE_CHANCE_MAX, WAVE_CHANCE_BASE + WAVE_CHANCE_PER_POWER * self.power)
+        enemy = WaveEnemy() if random.random() < wave_chance else Enemy()
+        self.enemies.add(enemy)
+        self.all_sprites.add(enemy)
 
     def fire_bullet(self):
         """총알을 쏜다. 파워업 레벨이 0이면 한 발, 레벨이 오를 때마다 한 발씩 늘어 나란히 나간다(최대 5발)."""
