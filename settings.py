@@ -54,7 +54,7 @@ POWER_MAX = 4  # 파워업 최대 레벨 (사냥 구간에 적을 잡을 때마�
 BULLET_SPREAD = 14  # 여러 발이 나갈 때 총알 사이의 가로 간격 (픽셀)
 
 # 게임 규칙
-START_LIVES = 3
+START_LIVES = 10  # 스타터는 3. 적을 놓치면 파워업도 깎여서 넉넉하게 10 으로 늘림
 SCORE_PER_ENEMY = 10
 
 # 색 (R, G, B) / 반투명 막 (R, G, B, 투명도)
