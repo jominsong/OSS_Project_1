@@ -5,7 +5,7 @@ import pygame
 
 from settings import (
     WIDTH, HEIGHT, FPS, TITLE, HIGHSCORE_FILE,
-    ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL,
+    ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS,
     WHITE, YELLOW, RED, HUD_SHADE, GAME_OVER_SHADE,
 )
 from entities import Background, Player, Enemy
@@ -66,6 +66,7 @@ class Game:
         self.pause_index = 0  # 일시정지 메뉴에서 고른 항목
         self.space_down = False  # 게임 중에 스페이스를 새로 눌러 연속 발사가 켜진 상태인가
         self.fire_cooldown = 0  # 다음 연속 발사까지 남은 프레임
+        self.hunt_frames = HUNT_SECONDS * FPS  # 사냥 구간 남은 시간(프레임). 프레임으로 세서 일시정지 중엔 멈춘다
 
     # ---------------- 입력 ----------------
     def handle_events(self):
@@ -153,6 +154,8 @@ class Game:
         if self.on_title:
             return  # 시작 화면에서는 배경만 흐름.
 
+        if self.hunt_frames > 0:
+            self.hunt_frames -= 1
         keys = pygame.key.get_pressed()
         self.player.update(keys)
         self.update_autofire(keys)
@@ -199,11 +202,21 @@ class Game:
         self.screen.blit(self.hud_shade, (0, 0))  # 점수·생명 글자 뒤 어두운 띠
         self.draw_text(f"LIVES: {self.lives}", self.font, WHITE, topright=(WIDTH - 10, 10))
         self.draw_text(f"SCORE: {self.score}", self.font, WHITE, topleft=(10, 10))
+        self.draw_hunt_timer()
         if self.game_over:
             self.draw_game_over()
         if self.paused:
             self.draw_pause()
         pygame.display.flip()
+
+    def draw_hunt_timer(self):
+        """화면 위 가운데에 사냥 구간 남은 시간(초)을 그린다. 5초 이하면 빨간색."""
+        if self.hunt_frames > 0:
+            seconds = (self.hunt_frames + FPS - 1) // FPS  # 올림: 20, 19, ... 1
+            color = RED if seconds <= 5 else YELLOW
+            self.draw_text(f"HUNT: {seconds}", self.font, color, midtop=(WIDTH // 2, 10))
+        else:
+            self.draw_text("HUNT: END", self.font, WHITE, midtop=(WIDTH // 2, 10))
 
     def draw_pause(self):
         """일시정지 화면."""

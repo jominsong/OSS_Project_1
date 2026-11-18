@@ -40,6 +40,9 @@ ENEMY_SPEED_MIN = 2
 ENEMY_SPEED_MAX = 4
 ENEMY_SPAWN_MS = 700  # 몇 밀리초마다 적이 하나씩 나타나는가
 
+# 사냥 구간: 이 시간(초) 안에 적을 잡으면 파워업을 얻는다
+HUNT_SECONDS = 20
+
 # 게임 규칙
 START_LIVES = 3
 SCORE_PER_ENEMY = 10
