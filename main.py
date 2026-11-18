@@ -8,10 +8,12 @@ from settings import (
     WIDTH, HEIGHT, FPS, TITLE, HIGHSCORE_FILE,
     ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS, POWER_MAX, BULLET_SPREAD,
     WAVE_CHANCE_BASE, WAVE_CHANCE_PER_POWER, WAVE_CHANCE_MAX,
+    BOSS_SCORE, BOSS_SCORE_STEP, BOSS_SECONDS,
     WHITE, YELLOW, RED, HUD_SHADE, GAME_OVER_SHADE,
 )
 from entities import Background, Player, Enemy
 from enemies import WaveEnemy
+from boss import Boss
 
 SPAWN_ENEMY = pygame.USEREVENT + 1  # "적을 하나 만들 때가 됐다"는 타이머 이벤트
 PAUSE_ITEMS = ("Resume", "Main Menu", "Quit")  # 일시정지 메뉴 항목 (기본 글꼴은 한글이 안 나와서 영어)
@@ -71,6 +73,9 @@ class Game:
         self.fire_cooldown = 0  # 다음 연속 발사까지 남은 프레임
         self.hunt_frames = HUNT_SECONDS * FPS  # 사냥 구간 남은 시간(프레임). 프레임으로 세서 일시정지 중엔 멈춘다
         self.power = 0  # 파워업 레벨. 사냥 구간 동안 적을 잡을 때마다 오른다
+        self.boss = None  # 보스전 중이면 Boss, 아니면 None
+        self.boss_frames = 0  # 보스전 남은 시간(프레임)
+        self.next_boss_score = BOSS_SCORE  # 이 점수가 되면 보스가 나온다
 
     # ---------------- 입력 ----------------
     def handle_events(self):
@@ -99,7 +104,9 @@ class Game:
                     self.reset()
 
     def spawn_enemy(self):
-        """적을 하나 만든다. 파워업 레벨이 높을수록 좌우로 흔들리는 적이 나올 확률이 커진다."""
+        """적을 하나 만든다. 파워업 레벨이 높을수록 좌우로 흔들리는 적이 나올 확률이 커진다. 보스전 중엔 만들지 않는다."""
+        if self.boss:
+            return
         wave_chance = min(WAVE_CHANCE_MAX, WAVE_CHANCE_BASE + WAVE_CHANCE_PER_POWER * self.power)
         enemy = WaveEnemy() if random.random() < wave_chance else Enemy()
         self.enemies.add(enemy)
@@ -189,8 +196,35 @@ class Game:
                 self.lives -= 1
                 self.power = max(0, self.power - 1)  # 적을 놓치면 파워업도 한 단계 내려감
 
+        self.update_boss()
+
         if self.lives <= 0:
             self.end_game()
+
+    def update_boss(self):
+        """점수가 기준에 닿으면 보스를 부르고, 보스전 제한시간을 센다."""
+        if self.boss:
+            self.boss.update()
+            self.boss_frames -= 1
+            if self.boss_frames <= 0:
+                self.end_boss()
+        elif self.score >= self.next_boss_score:
+            self.start_boss()
+
+    def start_boss(self):
+        self.boss = Boss()
+        self.all_sprites.add(self.boss)
+        self.boss_frames = BOSS_SECONDS * FPS
+        self.hunt_frames = 0  # 사냥 구간은 끝: 파워업 레벨이 고정된 채로 보스전에 들어간다
+
+    def end_boss(self):
+        """보스전을 끝낸다(격파·시간 종료 공통). 파워업을 비우고 사냥 구간을 새로 시작한다."""
+        self.boss.kill()
+        self.boss = None
+        self.boss_frames = 0
+        self.power = 0
+        self.hunt_frames = HUNT_SECONDS * FPS
+        self.next_boss_score = self.score + BOSS_SCORE_STEP
 
     def end_game(self):
         """게임 오버 처리."""
@@ -218,6 +252,7 @@ class Game:
         self.draw_text(f"LIVES: {self.lives}", self.font, WHITE, topright=(WIDTH - 10, 10))
         self.draw_text(f"SCORE: {self.score}", self.font, WHITE, topleft=(10, 10))
         self.draw_hunt_timer()
+        self.draw_boss_bar()
         self.draw_text(f"POWER: {self.power}/{POWER_MAX}", self.font, YELLOW if self.power else WHITE, topleft=(10, 38))
         if self.game_over:
             self.draw_game_over()
@@ -225,9 +260,23 @@ class Game:
             self.draw_pause()
         pygame.display.flip()
 
+    def draw_boss_bar(self):
+        """보스전 중에 HUD 아래에 보스 체력 바를 그린다."""
+        if not self.boss:
+            return
+        width, height, top = 300, 12, 76
+        left = (WIDTH - width) // 2
+        filled = round(width * max(0, self.boss.hp) / self.boss.max_hp)
+        pygame.draw.rect(self.screen, (60, 0, 0), (left, top, width, height))
+        pygame.draw.rect(self.screen, RED, (left, top, filled, height))
+        pygame.draw.rect(self.screen, WHITE, (left, top, width, height), 1)
+
     def draw_hunt_timer(self):
-        """화면 위 가운데에 사냥 구간 남은 시간(초)을 그린다. 5초 이하면 빨간색."""
-        if self.hunt_frames > 0:
+        """화면 위 가운데에 사냥 구간(보스전 중엔 보스전) 남은 시간(초)을 그린다. 5초 이하면 빨간색."""
+        if self.boss:
+            seconds = (self.boss_frames + FPS - 1) // FPS
+            self.draw_text(f"BOSS: {seconds}", self.font, RED if seconds <= 5 else YELLOW, midtop=(WIDTH // 2, 10))
+        elif self.hunt_frames > 0:
             seconds = (self.hunt_frames + FPS - 1) // FPS  # 올림: 20, 19, ... 1
             color = RED if seconds <= 5 else YELLOW
             self.draw_text(f"HUNT: {seconds}", self.font, color, midtop=(WIDTH // 2, 10))

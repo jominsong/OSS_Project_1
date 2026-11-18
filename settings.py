@@ -53,6 +53,16 @@ HUNT_SECONDS = 20
 POWER_MAX = 4  # 파워업 최대 레벨 (사냥 구간에 적을 잡을 때마다 1 오름). 한 번에 나가는 총알 = 1 + 레벨 (최대 5발)
 BULLET_SPREAD = 5  # 여러 발이 나갈 때 총알 사이의 가로 간격 (픽셀). 총알 폭(10)보다 작아서 서로 겹치게 촘촘히 나감
 
+# 보스 (개조)
+BOSS_FRAME = ("enemy-big.png", (3, 2, 26, 30), 4)  # 104 x 120
+BOSS_SCORE = 300  # 첫 보스가 나오는 점수
+BOSS_SCORE_STEP = 300  # 보스전이 끝난 점수에서 이만큼 더 모으면 다음 보스
+BOSS_HP = 300
+BOSS_SECONDS = 20  # 보스전 제한시간(초)
+BOSS_SPEED = 2  # 좌우 왕복 속도
+BOSS_ENTER_SPEED = 3  # 등장할 때 내려오는 속도
+BOSS_Y = 100  # 보스 위쪽 끝 위치 (HUD 아래)
+
 # 게임 규칙
 START_LIVES = 10  # 스타터는 3. 적을 놓치면 파워업도 깎여서 넉넉하게 10 으로 늘림
 SCORE_PER_ENEMY = 10
