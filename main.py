@@ -8,10 +8,13 @@ from settings import (
     WIDTH, HEIGHT, FPS, TITLE, HIGHSCORE_FILE,
     ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS, POWER_MAX, BULLET_SPREAD,
     WAVE_CHANCE_BASE, WAVE_CHANCE_PER_POWER, WAVE_CHANCE_MAX,
+    BOSS_SECONDS, BOSS_BULLET_DAMAGE, BOSS_SCORE_PER_DAMAGE, PLAYER_HITBOX, HIT_INVINCIBLE_FRAMES,
+    PARRY_FRAMES, PARRY_COOLDOWN, PARRY_REACH, PARRY_BLAST_RADIUS, REFLECT_SPEED, BOSS_REFLECT_DAMAGE,
     WHITE, YELLOW, RED, HUD_SHADE, GAME_OVER_SHADE,
 )
 from entities import Background, Player, Enemy
 from enemies import WaveEnemy
+from boss import Boss
 
 SPAWN_ENEMY = pygame.USEREVENT + 1  # "적을 하나 만들 때가 됐다"는 타이머 이벤트
 PAUSE_ITEMS = ("Resume", "Main Menu", "Quit")  # 일시정지 메뉴 항목 (기본 글꼴은 한글이 안 나와서 영어)
@@ -60,7 +63,9 @@ class Game:
         self.all_sprites = pygame.sprite.Group()  # 화면에 그릴 모든 스프라이트
         self.bullets = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
+        self.boss_bullets = pygame.sprite.Group()  # 보스가 쏜 탄 (일반 적·내 총알과 별도 그룹)
         self.player = Player()
+        self.player.image.set_alpha(255)  # 맞았을 때 깜빡이는 효과를 되돌림 (그림은 캐시되어 공유됨)
         self.all_sprites.add(self.player)
         self.score = 0
         self.lives = START_LIVES
@@ -71,6 +76,13 @@ class Game:
         self.fire_cooldown = 0  # 다음 연속 발사까지 남은 프레임
         self.hunt_frames = HUNT_SECONDS * FPS  # 사냥 구간 남은 시간(프레임). 프레임으로 세서 일시정지 중엔 멈춘다
         self.power = 0  # 파워업 레벨. 사냥 구간 동안 적을 잡을 때마다 오른다
+        self.boss = None  # 보스전 중이면 Boss, 아니면 None
+        self.boss_frames = 0  # 보스전 남은 시간(프레임)
+        self.hit_cooldown = 0  # 보스 탄에 맞은 뒤 남은 무적 프레임
+        self.parry_frames = 0  # 패링 판정이 켜져 있는 남은 프레임
+        self.parry_cooldown = 0  # 다시 패링할 수 있을 때까지 남은 프레임
+        self.parry_flash = 0  # 패링 성공 효과(링)를 보여 줄 남은 프레임
+        self.parry_origin = (0, 0)  # 마지막으로 패링에 성공한 위치
 
     # ---------------- 입력 ----------------
     def handle_events(self):
@@ -95,15 +107,58 @@ class Game:
                     self.fire_bullet()
                     self.space_down = True
                     self.fire_cooldown = FIRE_INTERVAL
+                elif event.key == pygame.K_z and not self.game_over:
+                    self.start_parry()
                 elif event.key == pygame.K_r and self.game_over:
                     self.reset()
 
     def spawn_enemy(self):
-        """적을 하나 만든다. 파워업 레벨이 높을수록 좌우로 흔들리는 적이 나올 확률이 커진다."""
+        """적을 하나 만든다. 파워업 레벨이 높을수록 좌우로 흔들리는 적이 나올 확률이 커진다. 보스전 중엔 만들지 않는다."""
+        if self.boss:
+            return
         wave_chance = min(WAVE_CHANCE_MAX, WAVE_CHANCE_BASE + WAVE_CHANCE_PER_POWER * self.power)
         enemy = WaveEnemy() if random.random() < wave_chance else Enemy()
         self.enemies.add(enemy)
         self.all_sprites.add(enemy)
+
+    def start_parry(self):
+        """Z 키: 패링 판정을 PARRY_FRAMES 동안 켠다. 쿨다운 중이면 무시."""
+        if self.parry_cooldown == 0:
+            self.parry_frames = PARRY_FRAMES
+            self.parry_cooldown = PARRY_COOLDOWN
+
+    def try_parry(self):
+        """판정이 켜져 있는 동안 초록 탄이 가까이 오면 튕겨낸다. 그 주변의 탄도 전부 같이 반사된다."""
+        center = pygame.Vector2(self.player.rect.center)
+        for bullet in list(self.boss_bullets):
+            if bullet.kind == "green" and not bullet.reflected and center.distance_to(bullet.pos) <= PARRY_REACH:
+                origin = pygame.Vector2(bullet.pos)
+                for other in self.boss_bullets:
+                    if not other.reflected and other.pos.distance_to(origin) <= PARRY_BLAST_RADIUS:
+                        other.reflect()
+                self.parry_origin = (round(origin.x), round(origin.y))
+                self.parry_flash = 12
+
+    def steer_reflected(self):
+        """반사된 탄은 매 프레임 보스를 향해 날아가고(보스가 움직여도 따라감), 닿으면 데미지를 준다."""
+        target = pygame.Vector2(self.boss.rect.center)
+        for bullet in self.boss_bullets:
+            if bullet.reflected:
+                direction = target - bullet.pos
+                if direction.length() > 0:
+                    bullet.vel = direction.normalize() * REFLECT_SPEED
+
+    def hit_boss_with_reflected(self):
+        for bullet in list(self.boss_bullets):
+            if bullet.reflected and bullet.rect.colliderect(self.boss.rect):
+                bullet.kill()
+                self.damage_boss(BOSS_REFLECT_DAMAGE)
+
+    def tick_parry(self):
+        """패링 관련 남은 시간을 한 프레임 줄인다."""
+        for name in ("parry_frames", "parry_cooldown", "parry_flash"):
+            if getattr(self, name) > 0:
+                setattr(self, name, getattr(self, name) - 1)
 
     def fire_bullet(self):
         """총알을 쏜다. 파워업 레벨이 0이면 한 발, 레벨이 오를 때마다 한 발씩 늘어 나란히 나간다(최대 5발)."""
@@ -189,8 +244,69 @@ class Game:
                 self.lives -= 1
                 self.power = max(0, self.power - 1)  # 적을 놓치면 파워업도 한 단계 내려감
 
+        self.update_boss()
+
         if self.lives <= 0:
             self.end_game()
+
+    def update_boss(self):
+        """사냥 구간이 끝나면 보스를 부르고, 내 총알이 보스를 맞히면 데미지를 주고, 보스전 제한시간을 센다."""
+        if self.boss:
+            self.boss.update()
+            if not self.boss.entering:  # 내려오는 동안은 맞지 않음
+                hits = pygame.sprite.spritecollide(self.boss, self.bullets, True)
+                self.damage_boss(len(hits) * BOSS_BULLET_DAMAGE)
+            for bullet in self.boss.shoot(self.player.rect.center):
+                self.boss_bullets.add(bullet)
+                self.all_sprites.add(bullet)
+            self.steer_reflected()
+            self.boss_bullets.update()
+            if self.parry_frames > 0:
+                self.try_parry()
+            self.hit_by_boss_bullets()
+            self.hit_boss_with_reflected()
+        self.tick_parry()
+        if self.boss:
+            self.boss_frames -= 1
+            if self.boss_frames <= 0:
+                self.end_boss()
+        elif self.hunt_frames <= 0:
+            self.start_boss()
+
+    def hit_by_boss_bullets(self):
+        """보스 탄이 플레이어(작은 판정)에 닿으면 탄이 사라지고 생명 -1. 맞은 뒤 잠깐은 무적이라 탄이 사라지기만 한다."""
+        if self.hit_cooldown > 0:
+            self.hit_cooldown -= 1
+        hitbox = pygame.Rect((0, 0), PLAYER_HITBOX)
+        hitbox.center = self.player.rect.center
+        for bullet in list(self.boss_bullets):
+            if not bullet.reflected and hitbox.colliderect(bullet.rect):
+                bullet.kill()
+                if self.hit_cooldown == 0:
+                    self.lives -= 1
+                    self.hit_cooldown = HIT_INVINCIBLE_FRAMES
+
+    def damage_boss(self, amount):
+        """보스에게 데미지를 준다. 보스는 죽지 않고, 준 데미지만큼만 점수가 오른다."""
+        if self.boss and amount > 0:
+            self.score += amount * BOSS_SCORE_PER_DAMAGE
+
+    def start_boss(self):
+        self.boss = Boss()
+        self.all_sprites.add(self.boss)
+        self.boss_frames = BOSS_SECONDS * FPS
+        self.hunt_frames = 0  # 사냥 구간은 끝난 상태 유지: 파워업 레벨이 고정된 채로 보스전에 들어간다
+
+    def end_boss(self):
+        """보스전을 끝낸다(제한시간이 다 됐을 때). 파워업을 비우고 사냥 구간을 새로 시작한다."""
+        self.boss.kill()
+        self.boss = None
+        self.boss_frames = 0
+        for bullet in list(self.boss_bullets):
+            bullet.kill()
+        self.hit_cooldown = 0
+        self.power = 0
+        self.hunt_frames = HUNT_SECONDS * FPS
 
     def end_game(self):
         """게임 오버 처리."""
@@ -211,7 +327,15 @@ class Game:
             self.draw_title()
             pygame.display.flip()
             return
+        if self.hit_cooldown > 0:  # 맞은 직후 무적 동안 플레이어가 깜빡임
+            self.player.image.set_alpha(110 if (self.hit_cooldown // 4) % 2 else 255)
+        else:
+            self.player.image.set_alpha(255)
         self.all_sprites.draw(self.screen)
+        if self.parry_frames > 0:  # 패링 판정 범위
+            pygame.draw.circle(self.screen, (80, 220, 255), self.player.rect.center, PARRY_REACH, 2)
+        if self.parry_flash > 0:  # 패링 성공: 함께 반사된 범위
+            pygame.draw.circle(self.screen, (255, 215, 0), self.parry_origin, PARRY_BLAST_RADIUS, 3)
         if self.game_over:
             self.screen.blit(self.dark_shade, (0, 0))  # 게임 오버 글자가 잘 보이게
         self.screen.blit(self.hud_shade, (0, 0))  # 점수·생명 글자 뒤 어두운 띠
@@ -219,6 +343,11 @@ class Game:
         self.draw_text(f"SCORE: {self.score}", self.font, WHITE, topleft=(10, 10))
         self.draw_hunt_timer()
         self.draw_text(f"POWER: {self.power}/{POWER_MAX}", self.font, YELLOW if self.power else WHITE, topleft=(10, 38))
+        if self.parry_cooldown == 0:
+            self.draw_text("PARRY(Z): READY", self.font, (80, 220, 255), topright=(WIDTH - 10, 38))
+        else:
+            seconds = (self.parry_cooldown + FPS - 1) // FPS
+            self.draw_text(f"PARRY(Z): {seconds}", self.font, WHITE, topright=(WIDTH - 10, 38))
         if self.game_over:
             self.draw_game_over()
         if self.paused:
@@ -226,8 +355,11 @@ class Game:
         pygame.display.flip()
 
     def draw_hunt_timer(self):
-        """화면 위 가운데에 사냥 구간 남은 시간(초)을 그린다. 5초 이하면 빨간색."""
-        if self.hunt_frames > 0:
+        """화면 위 가운데에 사냥 구간(보스전 중엔 보스전) 남은 시간(초)을 그린다. 5초 이하면 빨간색."""
+        if self.boss:
+            seconds = (self.boss_frames + FPS - 1) // FPS
+            self.draw_text(f"BOSS: {seconds}", self.font, RED if seconds <= 5 else YELLOW, midtop=(WIDTH // 2, 10))
+        elif self.hunt_frames > 0:
             seconds = (self.hunt_frames + FPS - 1) // FPS  # 올림: 20, 19, ... 1
             color = RED if seconds <= 5 else YELLOW
             self.draw_text(f"HUNT: {seconds}", self.font, color, midtop=(WIDTH // 2, 10))

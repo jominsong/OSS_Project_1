@@ -36,9 +36,9 @@ BULLET_SPEED = 10
 FIRE_INTERVAL = 9  # 스페이스를 누르고 있을 때 연속 발사 간격 (프레임, 60FPS 에서 0.15초)
 
 # 적
-ENEMY_SPEED_MIN = 2
-ENEMY_SPEED_MAX = 4
-ENEMY_SPAWN_MS = 700  # 몇 밀리초마다 적이 하나씩 나타나는가
+ENEMY_SPEED_MIN = 3  # 스타터는 2~4. 파워업이 너무 쉽게 쌓여서 빠르게 조정
+ENEMY_SPEED_MAX = 5
+ENEMY_SPAWN_MS = 500  # 몇 밀리초마다 적이 하나씩 나타나는가 (스타터는 700)
 
 # 좌우로 흔들리는 적 (개조)
 WAVE_AMPLITUDE_MIN = 30  # 흔들리는 폭(픽셀)의 범위
@@ -52,6 +52,25 @@ WAVE_CHANCE_MAX = 0.8
 HUNT_SECONDS = 20
 POWER_MAX = 4  # 파워업 최대 레벨 (사냥 구간에 적을 잡을 때마다 1 오름). 한 번에 나가는 총알 = 1 + 레벨 (최대 5발)
 BULLET_SPREAD = 5  # 여러 발이 나갈 때 총알 사이의 가로 간격 (픽셀). 총알 폭(10)보다 작아서 서로 겹치게 촘촘히 나감
+
+# 보스 (개조)
+BOSS_FRAME = ("enemy-big.png", (3, 2, 26, 30), 4)  # 104 x 120
+# 보스는 사냥 구간(HUNT_SECONDS)이 끝나면 나오고, 보스전이 끝나면 사냥 구간이 다시 시작된다
+BOSS_SECONDS = 20  # 보스전 제한시간(초)
+BOSS_SPEED = 2  # 좌우 왕복 속도
+BOSS_ENTER_SPEED = 3  # 등장할 때 내려오는 속도
+BOSS_Y = 100  # 보스 위쪽 끝 위치 (HUD 아래)
+BOSS_BULLET_DAMAGE = 1  # 내 총알 한 발이 보스에 주는 데미지
+BOSS_BULLET_RADIUS = 6  # 보스 탄 크기
+PLAYER_HITBOX = (24, 36)  # 보스 탄에 맞는 판정 크기(가로, 세로). 그림보다 작게 잡아 탄막 사이를 지나갈 수 있게 함
+HIT_INVINCIBLE_FRAMES = 45  # 보스 탄에 맞은 뒤 무적 시간(프레임, 0.75초). 일반 적과 부딪히는 건 영향 없음
+PARRY_FRAMES = 24  # Z 를 누르면 패링 판정이 켜져 있는 시간(프레임). 60FPS 에서 0.4초
+PARRY_COOLDOWN = 60  # 패링을 누른 뒤 다시 쓸 수 있을 때까지(프레임, 1초)
+PARRY_REACH = 55  # 판정이 켜져 있을 때 플레이어 중심에서 이 거리 안에 초록 탄이 들어오면 패링 성공
+PARRY_BLAST_RADIUS = 120  # 패링한 초록 탄 주변 이 거리 안의 탄은 전부 같이 반사된다
+REFLECT_SPEED = 9  # 반사된 탄이 보스를 향해 날아가는 속도
+BOSS_REFLECT_DAMAGE = 3  # 반사된 탄 한 발이 보스에 주는 데미지 (내 총알은 1)
+BOSS_SCORE_PER_DAMAGE = 1  # 보스에게 준 데미지 1당 점수. 보스는 죽지 않고, 데미지를 준 만큼만 점수를 준다(다른 점수 없음)
 
 # 게임 규칙
 START_LIVES = 10  # 스타터는 3. 적을 놓치면 파워업도 깎여서 넉넉하게 10 으로 늘림
