@@ -61,6 +61,7 @@ class Game:
         self.score = 0
         self.lives = START_LIVES
         self.game_over = False
+        self.paused = False
 
     # ---------------- 입력 ----------------
     def handle_events(self):
@@ -69,13 +70,18 @@ class Game:
                 self.running = False
             elif self.on_title:
                 self.handle_title_event(event)  # 시작 화면 입력은 여기서만 처리
+            elif self.paused:
+                self.handle_pause_event(event)  # 일시정지 중 입력은 여기서만 처리 (적 생성·발사 없음)
             elif event.type == SPAWN_ENEMY and not self.game_over:
                 enemy = Enemy()
                 self.enemies.add(enemy)
                 self.all_sprites.add(enemy)
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self.running = False
+                    if self.game_over:
+                        self.running = False
+                    else:
+                        self.paused = True
                 elif event.key == pygame.K_SPACE and not self.game_over:
                     bullet = self.player.shoot()
                     self.bullets.add(bullet)
@@ -92,10 +98,15 @@ class Game:
             elif event.key == pygame.K_ESCAPE:
                 self.running = False
 
+    def handle_pause_event(self, event):
+        """일시정지 중의 입력: ESC 면 이어서 진행."""
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.paused = False
+
     # ---------------- 갱신 ----------------
     def update(self):
-        if self.game_over:
-            return  # 게임 오버면 화면(배경 포함)을 멈춤.
+        if self.game_over or self.paused:
+            return  # 게임 오버·일시정지면 화면(배경 포함)을 멈춤.
 
         self.background.update()
         if self.on_title:
@@ -147,7 +158,14 @@ class Game:
         self.draw_text(f"SCORE: {self.score}", self.font, WHITE, topleft=(10, 10))
         if self.game_over:
             self.draw_game_over()
+        if self.paused:
+            self.draw_pause()
         pygame.display.flip()
+
+    def draw_pause(self):
+        """일시정지 화면."""
+        self.screen.blit(self.dark_shade, (0, 0))
+        self.draw_text("PAUSED", self.big_font, YELLOW, center=(WIDTH // 2, HEIGHT // 2))
 
     def draw_title(self):
         """시작 화면: 게임 이름, 플레이어 그림, 조작 안내, 깜빡이는 시작 안내."""
