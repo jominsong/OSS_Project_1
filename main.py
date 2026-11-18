@@ -1,14 +1,17 @@
 """종스크롤 슈팅 게임. 실행: python main.py"""
+import random
 import sys
 
 import pygame
 
 from settings import (
     WIDTH, HEIGHT, FPS, TITLE, HIGHSCORE_FILE,
-    ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY,
+    ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS, POWER_MAX, BULLET_SPREAD,
+    WAVE_CHANCE_BASE, WAVE_CHANCE_PER_POWER, WAVE_CHANCE_MAX,
     WHITE, YELLOW, RED, HUD_SHADE, GAME_OVER_SHADE,
 )
 from entities import Background, Player, Enemy
+from enemies import WaveEnemy
 
 SPAWN_ENEMY = pygame.USEREVENT + 1  # "적을 하나 만들 때가 됐다"는 타이머 이벤트
 PAUSE_ITEMS = ("Resume", "Main Menu", "Quit")  # 일시정지 메뉴 항목 (기본 글꼴은 한글이 안 나와서 영어)
@@ -43,7 +46,7 @@ class Game:
         pygame.time.set_timer(SPAWN_ENEMY, ENEMY_SPAWN_MS)
         self.background = Background()
         # 밝은 배경 위에서도 글자가 보이도록 깔아 줄 반투명 어두운 막
-        self.hud_shade = pygame.Surface((WIDTH, 44), pygame.SRCALPHA)
+        self.hud_shade = pygame.Surface((WIDTH, 70), pygame.SRCALPHA)  # 둘째 줄(POWER)까지 덮도록 높이 70
         self.hud_shade.fill(HUD_SHADE)
         self.dark_shade = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)  # 시작·게임 오버 화면용
         self.dark_shade.fill(GAME_OVER_SHADE)
@@ -64,6 +67,10 @@ class Game:
         self.game_over = False
         self.paused = False
         self.pause_index = 0  # 일시정지 메뉴에서 고른 항목
+        self.space_down = False  # 게임 중에 스페이스를 새로 눌러 연속 발사가 켜진 상태인가
+        self.fire_cooldown = 0  # 다음 연속 발사까지 남은 프레임
+        self.hunt_frames = HUNT_SECONDS * FPS  # 사냥 구간 남은 시간(프레임). 프레임으로 세서 일시정지 중엔 멈춘다
+        self.power = 0  # 파워업 레벨. 사냥 구간 동안 적을 잡을 때마다 오른다
 
     # ---------------- 입력 ----------------
     def handle_events(self):
@@ -75,9 +82,7 @@ class Game:
             elif self.paused:
                 self.handle_pause_event(event)  # 일시정지 중 입력은 여기서만 처리 (적 생성·발사 없음)
             elif event.type == SPAWN_ENEMY and not self.game_over:
-                enemy = Enemy()
-                self.enemies.add(enemy)
-                self.all_sprites.add(enemy)
+                self.spawn_enemy()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if self.game_over:
@@ -85,12 +90,39 @@ class Game:
                     else:
                         self.paused = True
                         self.pause_index = 0
+                        self.space_down = False  # 일시정지 중에 누르고 뗀 키는 이어서 하기 전에 다시 눌러야 연사
                 elif event.key == pygame.K_SPACE and not self.game_over:
-                    bullet = self.player.shoot()
-                    self.bullets.add(bullet)
-                    self.all_sprites.add(bullet)
+                    self.fire_bullet()
+                    self.space_down = True
+                    self.fire_cooldown = FIRE_INTERVAL
                 elif event.key == pygame.K_r and self.game_over:
                     self.reset()
+
+    def spawn_enemy(self):
+        """적을 하나 만든다. 파워업 레벨이 높을수록 좌우로 흔들리는 적이 나올 확률이 커진다."""
+        wave_chance = min(WAVE_CHANCE_MAX, WAVE_CHANCE_BASE + WAVE_CHANCE_PER_POWER * self.power)
+        enemy = WaveEnemy() if random.random() < wave_chance else Enemy()
+        self.enemies.add(enemy)
+        self.all_sprites.add(enemy)
+
+    def fire_bullet(self):
+        """총알을 쏜다. 파워업 레벨이 0이면 한 발, 레벨이 오를 때마다 한 발씩 늘어 나란히 나간다(최대 5발)."""
+        count = 1 + self.power
+        for i in range(count):
+            bullet = self.player.shoot()
+            bullet.rect.centerx += round((i - (count - 1) / 2) * BULLET_SPREAD)  # 가운데를 기준으로 좌우 대칭
+            self.bullets.add(bullet)
+            self.all_sprites.add(bullet)
+
+    def update_autofire(self, keys):
+        """스페이스를 누르고 있는 동안 FIRE_INTERVAL 프레임마다 총알을 더 쏜다."""
+        if not keys[pygame.K_SPACE]:
+            self.space_down = False
+        if self.fire_cooldown > 0:
+            self.fire_cooldown -= 1
+        if self.fire_cooldown == 0 and self.space_down:
+            self.fire_bullet()
+            self.fire_cooldown = FIRE_INTERVAL
 
     def handle_title_event(self, event):
         """시작 화면의 입력: SPACE 면 새 판 시작, ESC 면 종료. (적 생성·발사 없음)"""
@@ -134,13 +166,19 @@ class Game:
         if self.on_title:
             return  # 시작 화면에서는 배경만 흐름.
 
-        self.player.update(pygame.key.get_pressed())
+        if self.hunt_frames > 0:
+            self.hunt_frames -= 1
+        keys = pygame.key.get_pressed()
+        self.player.update(keys)
+        self.update_autofire(keys)
         self.bullets.update()
         self.enemies.update()
 
         hits = pygame.sprite.groupcollide(self.bullets, self.enemies, True, True)
         killed = {enemy for enemies in hits.values() for enemy in enemies}  # 총알 둘이 한 적을 맞혀도 한 번만 셈
-        self.score += len(killed) * SCORE_PER_ENEMY
+        self.score += len(killed) * SCORE_PER_ENEMY  # 일반 적 점수는 파워업과 상관없이 항상 같음
+        if self.hunt_frames > 0:
+            self.power = min(POWER_MAX, self.power + len(killed))
 
         self.lives -= len(pygame.sprite.spritecollide(self.player, self.enemies, True))
 
@@ -149,6 +187,7 @@ class Game:
             if enemy.rect.top > HEIGHT:
                 enemy.kill()
                 self.lives -= 1
+                self.power = max(0, self.power - 1)  # 적을 놓치면 파워업도 한 단계 내려감
 
         if self.lives <= 0:
             self.end_game()
@@ -178,11 +217,22 @@ class Game:
         self.screen.blit(self.hud_shade, (0, 0))  # 점수·생명 글자 뒤 어두운 띠
         self.draw_text(f"LIVES: {self.lives}", self.font, WHITE, topright=(WIDTH - 10, 10))
         self.draw_text(f"SCORE: {self.score}", self.font, WHITE, topleft=(10, 10))
+        self.draw_hunt_timer()
+        self.draw_text(f"POWER: {self.power}/{POWER_MAX}", self.font, YELLOW if self.power else WHITE, topleft=(10, 38))
         if self.game_over:
             self.draw_game_over()
         if self.paused:
             self.draw_pause()
         pygame.display.flip()
+
+    def draw_hunt_timer(self):
+        """화면 위 가운데에 사냥 구간 남은 시간(초)을 그린다. 5초 이하면 빨간색."""
+        if self.hunt_frames > 0:
+            seconds = (self.hunt_frames + FPS - 1) // FPS  # 올림: 20, 19, ... 1
+            color = RED if seconds <= 5 else YELLOW
+            self.draw_text(f"HUNT: {seconds}", self.font, color, midtop=(WIDTH // 2, 10))
+        else:
+            self.draw_text("HUNT: END", self.font, WHITE, midtop=(WIDTH // 2, 10))
 
     def draw_pause(self):
         """일시정지 화면."""
