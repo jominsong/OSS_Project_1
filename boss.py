@@ -2,18 +2,16 @@
 import pygame
 
 from entities import load_frame
-from settings import WIDTH, BOSS_FRAME, BOSS_HP, BOSS_SPEED, BOSS_Y, BOSS_ENTER_SPEED
+from settings import WIDTH, BOSS_FRAME, BOSS_SPEED, BOSS_Y, BOSS_ENTER_SPEED
 
 
 class Boss(pygame.sprite.Sprite):
-    """화면 위에서 내려와 좌우로 왕복하는 보스."""
+    """화면 위에서 내려와 좌우로 왕복하는 보스. 체력이 없어서 죽지 않고, 제한시간이 끝나면 사라진다."""
 
     def __init__(self):
         super().__init__()
         self.image = load_frame(*BOSS_FRAME)
         self.rect = self.image.get_rect(midbottom=(WIDTH // 2, 0))  # 화면 위 바깥에서 시작
-        self.hp = BOSS_HP
-        self.max_hp = BOSS_HP
         self.direction = 1
 
     @property

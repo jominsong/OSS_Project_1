@@ -8,7 +8,7 @@ from settings import (
     WIDTH, HEIGHT, FPS, TITLE, HIGHSCORE_FILE,
     ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS, POWER_MAX, BULLET_SPREAD,
     WAVE_CHANCE_BASE, WAVE_CHANCE_PER_POWER, WAVE_CHANCE_MAX,
-    BOSS_SCORE, BOSS_SCORE_STEP, BOSS_SECONDS,
+    BOSS_SECONDS, BOSS_BULLET_DAMAGE, BOSS_SCORE_PER_DAMAGE,
     WHITE, YELLOW, RED, HUD_SHADE, GAME_OVER_SHADE,
 )
 from entities import Background, Player, Enemy
@@ -75,7 +75,6 @@ class Game:
         self.power = 0  # 파워업 레벨. 사냥 구간 동안 적을 잡을 때마다 오른다
         self.boss = None  # 보스전 중이면 Boss, 아니면 None
         self.boss_frames = 0  # 보스전 남은 시간(프레임)
-        self.next_boss_score = BOSS_SCORE  # 이 점수가 되면 보스가 나온다
 
     # ---------------- 입력 ----------------
     def handle_events(self):
@@ -202,29 +201,37 @@ class Game:
             self.end_game()
 
     def update_boss(self):
-        """점수가 기준에 닿으면 보스를 부르고, 보스전 제한시간을 센다."""
+        """사냥 구간이 끝나면 보스를 부르고, 내 총알이 보스를 맞히면 데미지를 주고, 보스전 제한시간을 센다."""
         if self.boss:
             self.boss.update()
+            if not self.boss.entering:  # 내려오는 동안은 맞지 않음
+                hits = pygame.sprite.spritecollide(self.boss, self.bullets, True)
+                self.damage_boss(len(hits) * BOSS_BULLET_DAMAGE)
+        if self.boss:
             self.boss_frames -= 1
             if self.boss_frames <= 0:
                 self.end_boss()
-        elif self.score >= self.next_boss_score:
+        elif self.hunt_frames <= 0:
             self.start_boss()
+
+    def damage_boss(self, amount):
+        """보스에게 데미지를 준다. 보스는 죽지 않고, 준 데미지만큼만 점수가 오른다."""
+        if self.boss and amount > 0:
+            self.score += amount * BOSS_SCORE_PER_DAMAGE
 
     def start_boss(self):
         self.boss = Boss()
         self.all_sprites.add(self.boss)
         self.boss_frames = BOSS_SECONDS * FPS
-        self.hunt_frames = 0  # 사냥 구간은 끝: 파워업 레벨이 고정된 채로 보스전에 들어간다
+        self.hunt_frames = 0  # 사냥 구간은 끝난 상태 유지: 파워업 레벨이 고정된 채로 보스전에 들어간다
 
     def end_boss(self):
-        """보스전을 끝낸다(격파·시간 종료 공통). 파워업을 비우고 사냥 구간을 새로 시작한다."""
+        """보스전을 끝낸다(제한시간이 다 됐을 때). 파워업을 비우고 사냥 구간을 새로 시작한다."""
         self.boss.kill()
         self.boss = None
         self.boss_frames = 0
         self.power = 0
         self.hunt_frames = HUNT_SECONDS * FPS
-        self.next_boss_score = self.score + BOSS_SCORE_STEP
 
     def end_game(self):
         """게임 오버 처리."""
@@ -252,24 +259,12 @@ class Game:
         self.draw_text(f"LIVES: {self.lives}", self.font, WHITE, topright=(WIDTH - 10, 10))
         self.draw_text(f"SCORE: {self.score}", self.font, WHITE, topleft=(10, 10))
         self.draw_hunt_timer()
-        self.draw_boss_bar()
         self.draw_text(f"POWER: {self.power}/{POWER_MAX}", self.font, YELLOW if self.power else WHITE, topleft=(10, 38))
         if self.game_over:
             self.draw_game_over()
         if self.paused:
             self.draw_pause()
         pygame.display.flip()
-
-    def draw_boss_bar(self):
-        """보스전 중에 HUD 아래에 보스 체력 바를 그린다."""
-        if not self.boss:
-            return
-        width, height, top = 300, 12, 76
-        left = (WIDTH - width) // 2
-        filled = round(width * max(0, self.boss.hp) / self.boss.max_hp)
-        pygame.draw.rect(self.screen, (60, 0, 0), (left, top, width, height))
-        pygame.draw.rect(self.screen, RED, (left, top, filled, height))
-        pygame.draw.rect(self.screen, WHITE, (left, top, width, height), 1)
 
     def draw_hunt_timer(self):
         """화면 위 가운데에 사냥 구간(보스전 중엔 보스전) 남은 시간(초)을 그린다. 5초 이하면 빨간색."""

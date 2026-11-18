@@ -55,13 +55,13 @@ BULLET_SPREAD = 5  # 여러 발이 나갈 때 총알 사이의 가로 간격 (�
 
 # 보스 (개조)
 BOSS_FRAME = ("enemy-big.png", (3, 2, 26, 30), 4)  # 104 x 120
-BOSS_SCORE = 300  # 첫 보스가 나오는 점수
-BOSS_SCORE_STEP = 300  # 보스전이 끝난 점수에서 이만큼 더 모으면 다음 보스
-BOSS_HP = 300
+# 보스는 사냥 구간(HUNT_SECONDS)이 끝나면 나오고, 보스전이 끝나면 사냥 구간이 다시 시작된다
 BOSS_SECONDS = 20  # 보스전 제한시간(초)
 BOSS_SPEED = 2  # 좌우 왕복 속도
 BOSS_ENTER_SPEED = 3  # 등장할 때 내려오는 속도
 BOSS_Y = 100  # 보스 위쪽 끝 위치 (HUD 아래)
+BOSS_BULLET_DAMAGE = 1  # 내 총알 한 발이 보스에 주는 데미지
+BOSS_SCORE_PER_DAMAGE = 1  # 보스에게 준 데미지 1당 점수. 보스는 죽지 않고, 데미지를 준 만큼만 점수를 준다(다른 점수 없음)
 
 # 게임 규칙
 START_LIVES = 10  # 스타터는 3. 적을 놓치면 파워업도 깎여서 넉넉하게 10 으로 늘림
