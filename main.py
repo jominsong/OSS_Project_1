@@ -187,6 +187,7 @@ class Game:
             if enemy.rect.top > HEIGHT:
                 enemy.kill()
                 self.lives -= 1
+                self.power = max(0, self.power - 1)  # 적을 놓치면 파워업도 한 단계 내려감
 
         if self.lives <= 0:
             self.end_game()
