@@ -13,18 +13,22 @@ from settings import (
 BULLET_COLORS = {
     "red": ((230, 50, 50), (255, 210, 210)),
     "green": ((60, 220, 90), (210, 255, 220)),
+    "reflect": ((255, 215, 0), (255, 255, 200)),  # 패링으로 튕겨낸 탄 (금색)
 }
 _bullet_images = {}
 
 # 탄막 패턴: 아래 시간표가 PATTERN_CYCLE 프레임마다 반복된다. (각도는 90도가 아래쪽)
 PATTERN_CYCLE = 360
 SPIRAL_END = 120  # 0 ~ 120: 좌우로 휘어지는 연발
-SPIRAL_EVERY = 5
+SPIRAL_EVERY = 7
 FAN_END = 240  # 120 ~ 240: 플레이어를 노리는 부채꼴
 FAN_EVERY = 40
-FAN_ANGLES = (-30, -15, 0, 15, 30)
+FAN_ANGLES = (-20, 0, 20)  # 가운데(0)가 플레이어를 정확히 노리는 탄
 RING_EVERY = 60  # 240 ~ 360: 원형 링
-RING_COUNT = 14
+RING_COUNT = 10
+GREEN_EVERY = 90  # 위 패턴과 따로, 이 간격마다 플레이어를 노리는 초록 탄(패링용) 한 발. 빨간 탄과 겹쳐 나오게 느리게 쏜다
+GREEN_AT = 45  # 한 주기 안에서 초록 탄을 쏘는 시점 (연발·부채꼴·링 발사 프레임과 겹치지 않게)
+GREEN_SPEED = 3.5
 
 
 def bullet_image(kind):
@@ -49,6 +53,12 @@ class BossBullet(pygame.sprite.Sprite):
         self.pos = pygame.Vector2(x, y)
         self.vel = pygame.Vector2(speed, 0).rotate(angle)
         self.rect = self.image.get_rect(center=(round(x), round(y)))
+        self.reflected = False  # 패링으로 튕겨낸 탄은 보스를 향해 날아가고 플레이어를 맞히지 않는다
+
+    def reflect(self):
+        """패링으로 튕겨낸다. 방향은 Game 이 매 프레임 보스 쪽으로 맞춰 준다."""
+        self.reflected = True
+        self.image = bullet_image("reflect")
 
     def update(self):
         self.pos += self.vel
@@ -93,6 +103,9 @@ class Boss(pygame.sprite.Sprite):
         self.age += 1
         x, y = self.rect.centerx, self.rect.bottom - 20
         bullets = []
+        if t % GREEN_EVERY == GREEN_AT:
+            aim = math.degrees(math.atan2(target[1] - y, target[0] - x))
+            bullets.append(BossBullet(x, y, aim, GREEN_SPEED, "green"))
         if t < SPIRAL_END:
             if t % SPIRAL_EVERY == 0:
                 angle = 90 + 60 * math.sin(t / 12)  # 아래쪽을 중심으로 좌우로 휘어짐

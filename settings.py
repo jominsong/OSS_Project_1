@@ -64,6 +64,12 @@ BOSS_BULLET_DAMAGE = 1  # 내 총알 한 발이 보스에 주는 데미지
 BOSS_BULLET_RADIUS = 6  # 보스 탄 크기
 PLAYER_HITBOX = (24, 36)  # 보스 탄에 맞는 판정 크기(가로, 세로). 그림보다 작게 잡아 탄막 사이를 지나갈 수 있게 함
 HIT_INVINCIBLE_FRAMES = 45  # 보스 탄에 맞은 뒤 무적 시간(프레임, 0.75초). 일반 적과 부딪히는 건 영향 없음
+PARRY_FRAMES = 24  # Z 를 누르면 패링 판정이 켜져 있는 시간(프레임). 60FPS 에서 0.4초
+PARRY_COOLDOWN = 60  # 패링을 누른 뒤 다시 쓸 수 있을 때까지(프레임, 1초)
+PARRY_REACH = 55  # 판정이 켜져 있을 때 플레이어 중심에서 이 거리 안에 초록 탄이 들어오면 패링 성공
+PARRY_BLAST_RADIUS = 120  # 패링한 초록 탄 주변 이 거리 안의 탄은 전부 같이 반사된다
+REFLECT_SPEED = 9  # 반사된 탄이 보스를 향해 날아가는 속도
+BOSS_REFLECT_DAMAGE = 3  # 반사된 탄 한 발이 보스에 주는 데미지 (내 총알은 1)
 BOSS_SCORE_PER_DAMAGE = 1  # 보스에게 준 데미지 1당 점수. 보스는 죽지 않고, 데미지를 준 만큼만 점수를 준다(다른 점수 없음)
 
 # 게임 규칙
