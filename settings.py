@@ -36,9 +36,9 @@ BULLET_SPEED = 10
 FIRE_INTERVAL = 9  # 스페이스를 누르고 있을 때 연속 발사 간격 (프레임, 60FPS 에서 0.15초)
 
 # 적
-ENEMY_SPEED_MIN = 2
-ENEMY_SPEED_MAX = 4
-ENEMY_SPAWN_MS = 700  # 몇 밀리초마다 적이 하나씩 나타나는가
+ENEMY_SPEED_MIN = 3  # 스타터는 2~4. 파워업이 너무 쉽게 쌓여서 빠르게 조정
+ENEMY_SPEED_MAX = 5
+ENEMY_SPAWN_MS = 500  # 몇 밀리초마다 적이 하나씩 나타나는가 (스타터는 700)
 
 # 좌우로 흔들리는 적 (개조)
 WAVE_AMPLITUDE_MIN = 30  # 흔들리는 폭(픽셀)의 범위
