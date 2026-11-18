@@ -5,7 +5,7 @@ import pygame
 
 from settings import (
     WIDTH, HEIGHT, FPS, TITLE, HIGHSCORE_FILE,
-    ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY,
+    ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL,
     WHITE, YELLOW, RED, HUD_SHADE, GAME_OVER_SHADE,
 )
 from entities import Background, Player, Enemy
@@ -64,6 +64,8 @@ class Game:
         self.game_over = False
         self.paused = False
         self.pause_index = 0  # 일시정지 메뉴에서 고른 항목
+        self.space_down = False  # 게임 중에 스페이스를 새로 눌러 연속 발사가 켜진 상태인가
+        self.fire_cooldown = 0  # 다음 연속 발사까지 남은 프레임
 
     # ---------------- 입력 ----------------
     def handle_events(self):
@@ -85,12 +87,29 @@ class Game:
                     else:
                         self.paused = True
                         self.pause_index = 0
+                        self.space_down = False  # 일시정지 중에 누르고 뗀 키는 이어서 하기 전에 다시 눌러야 연사
                 elif event.key == pygame.K_SPACE and not self.game_over:
-                    bullet = self.player.shoot()
-                    self.bullets.add(bullet)
-                    self.all_sprites.add(bullet)
+                    self.fire_bullet()
+                    self.space_down = True
+                    self.fire_cooldown = FIRE_INTERVAL
                 elif event.key == pygame.K_r and self.game_over:
                     self.reset()
+
+    def fire_bullet(self):
+        """플레이어 위치에서 총알 한 발을 쏜다."""
+        bullet = self.player.shoot()
+        self.bullets.add(bullet)
+        self.all_sprites.add(bullet)
+
+    def update_autofire(self, keys):
+        """스페이스를 누르고 있는 동안 FIRE_INTERVAL 프레임마다 총알을 더 쏜다."""
+        if not keys[pygame.K_SPACE]:
+            self.space_down = False
+        if self.fire_cooldown > 0:
+            self.fire_cooldown -= 1
+        if self.fire_cooldown == 0 and self.space_down:
+            self.fire_bullet()
+            self.fire_cooldown = FIRE_INTERVAL
 
     def handle_title_event(self, event):
         """시작 화면의 입력: SPACE 면 새 판 시작, ESC 면 종료. (적 생성·발사 없음)"""
@@ -134,7 +153,9 @@ class Game:
         if self.on_title:
             return  # 시작 화면에서는 배경만 흐름.
 
-        self.player.update(pygame.key.get_pressed())
+        keys = pygame.key.get_pressed()
+        self.player.update(keys)
+        self.update_autofire(keys)
         self.bullets.update()
         self.enemies.update()
 

@@ -33,6 +33,7 @@ PLAYER_SPEED = 6
 
 # 총알
 BULLET_SPEED = 10
+FIRE_INTERVAL = 9  # 스페이스를 누르고 있을 때 연속 발사 간격 (프레임, 60FPS 에서 0.15초)
 
 # 적
 ENEMY_SPEED_MIN = 2
