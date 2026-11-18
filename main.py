@@ -8,7 +8,7 @@ from settings import (
     WIDTH, HEIGHT, FPS, TITLE, HIGHSCORE_FILE,
     ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS, POWER_MAX, BULLET_SPREAD,
     WAVE_CHANCE_BASE, WAVE_CHANCE_PER_POWER, WAVE_CHANCE_MAX,
-    BOSS_SECONDS, BOSS_BULLET_DAMAGE, BOSS_SCORE_PER_DAMAGE,
+    BOSS_SECONDS, BOSS_BULLET_DAMAGE, BOSS_SCORE_PER_DAMAGE, PLAYER_HITBOX, HIT_INVINCIBLE_FRAMES,
     WHITE, YELLOW, RED, HUD_SHADE, GAME_OVER_SHADE,
 )
 from entities import Background, Player, Enemy
@@ -62,7 +62,9 @@ class Game:
         self.all_sprites = pygame.sprite.Group()  # 화면에 그릴 모든 스프라이트
         self.bullets = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
+        self.boss_bullets = pygame.sprite.Group()  # 보스가 쏜 탄 (일반 적·내 총알과 별도 그룹)
         self.player = Player()
+        self.player.image.set_alpha(255)  # 맞았을 때 깜빡이는 효과를 되돌림 (그림은 캐시되어 공유됨)
         self.all_sprites.add(self.player)
         self.score = 0
         self.lives = START_LIVES
@@ -75,6 +77,7 @@ class Game:
         self.power = 0  # 파워업 레벨. 사냥 구간 동안 적을 잡을 때마다 오른다
         self.boss = None  # 보스전 중이면 Boss, 아니면 None
         self.boss_frames = 0  # 보스전 남은 시간(프레임)
+        self.hit_cooldown = 0  # 보스 탄에 맞은 뒤 남은 무적 프레임
 
     # ---------------- 입력 ----------------
     def handle_events(self):
@@ -207,12 +210,30 @@ class Game:
             if not self.boss.entering:  # 내려오는 동안은 맞지 않음
                 hits = pygame.sprite.spritecollide(self.boss, self.bullets, True)
                 self.damage_boss(len(hits) * BOSS_BULLET_DAMAGE)
+            for bullet in self.boss.shoot(self.player.rect.center):
+                self.boss_bullets.add(bullet)
+                self.all_sprites.add(bullet)
+            self.boss_bullets.update()
+            self.hit_by_boss_bullets()
         if self.boss:
             self.boss_frames -= 1
             if self.boss_frames <= 0:
                 self.end_boss()
         elif self.hunt_frames <= 0:
             self.start_boss()
+
+    def hit_by_boss_bullets(self):
+        """보스 탄이 플레이어(작은 판정)에 닿으면 탄이 사라지고 생명 -1. 맞은 뒤 잠깐은 무적이라 탄이 사라지기만 한다."""
+        if self.hit_cooldown > 0:
+            self.hit_cooldown -= 1
+        hitbox = pygame.Rect((0, 0), PLAYER_HITBOX)
+        hitbox.center = self.player.rect.center
+        for bullet in list(self.boss_bullets):
+            if hitbox.colliderect(bullet.rect):
+                bullet.kill()
+                if self.hit_cooldown == 0:
+                    self.lives -= 1
+                    self.hit_cooldown = HIT_INVINCIBLE_FRAMES
 
     def damage_boss(self, amount):
         """보스에게 데미지를 준다. 보스는 죽지 않고, 준 데미지만큼만 점수가 오른다."""
@@ -230,6 +251,9 @@ class Game:
         self.boss.kill()
         self.boss = None
         self.boss_frames = 0
+        for bullet in list(self.boss_bullets):
+            bullet.kill()
+        self.hit_cooldown = 0
         self.power = 0
         self.hunt_frames = HUNT_SECONDS * FPS
 
@@ -252,6 +276,10 @@ class Game:
             self.draw_title()
             pygame.display.flip()
             return
+        if self.hit_cooldown > 0:  # 맞은 직후 무적 동안 플레이어가 깜빡임
+            self.player.image.set_alpha(110 if (self.hit_cooldown // 4) % 2 else 255)
+        else:
+            self.player.image.set_alpha(255)
         self.all_sprites.draw(self.screen)
         if self.game_over:
             self.screen.blit(self.dark_shade, (0, 0))  # 게임 오버 글자가 잘 보이게

@@ -61,6 +61,9 @@ BOSS_SPEED = 2  # 좌우 왕복 속도
 BOSS_ENTER_SPEED = 3  # 등장할 때 내려오는 속도
 BOSS_Y = 100  # 보스 위쪽 끝 위치 (HUD 아래)
 BOSS_BULLET_DAMAGE = 1  # 내 총알 한 발이 보스에 주는 데미지
+BOSS_BULLET_RADIUS = 6  # 보스 탄 크기
+PLAYER_HITBOX = (24, 36)  # 보스 탄에 맞는 판정 크기(가로, 세로). 그림보다 작게 잡아 탄막 사이를 지나갈 수 있게 함
+HIT_INVINCIBLE_FRAMES = 45  # 보스 탄에 맞은 뒤 무적 시간(프레임, 0.75초). 일반 적과 부딪히는 건 영향 없음
 BOSS_SCORE_PER_DAMAGE = 1  # 보스에게 준 데미지 1당 점수. 보스는 죽지 않고, 데미지를 준 만큼만 점수를 준다(다른 점수 없음)
 
 # 게임 규칙
