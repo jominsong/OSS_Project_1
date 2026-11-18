@@ -11,6 +11,7 @@ from settings import (
 from entities import Background, Player, Enemy
 
 SPAWN_ENEMY = pygame.USEREVENT + 1  # "적을 하나 만들 때가 됐다"는 타이머 이벤트
+PAUSE_ITEMS = ("Resume", "Main Menu", "Quit")  # 일시정지 메뉴 항목 (기본 글꼴은 한글이 안 나와서 영어)
 
 
 def load_high_score():
@@ -62,6 +63,7 @@ class Game:
         self.lives = START_LIVES
         self.game_over = False
         self.paused = False
+        self.pause_index = 0  # 일시정지 메뉴에서 고른 항목
 
     # ---------------- 입력 ----------------
     def handle_events(self):
@@ -82,6 +84,7 @@ class Game:
                         self.running = False
                     else:
                         self.paused = True
+                        self.pause_index = 0
                 elif event.key == pygame.K_SPACE and not self.game_over:
                     bullet = self.player.shoot()
                     self.bullets.add(bullet)
@@ -99,9 +102,21 @@ class Game:
                 self.running = False
 
     def handle_pause_event(self, event):
-        """일시정지 중의 입력: ESC 면 이어서 진행."""
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        """일시정지 중의 입력: ↑/↓ 로 고르고 Enter 로 실행, ESC 면 이어서 진행."""
+        if event.type != pygame.KEYDOWN:
+            return
+        if event.key == pygame.K_ESCAPE:
             self.paused = False
+        elif event.key == pygame.K_UP:
+            self.pause_index = (self.pause_index - 1) % len(PAUSE_ITEMS)
+        elif event.key == pygame.K_DOWN:
+            self.pause_index = (self.pause_index + 1) % len(PAUSE_ITEMS)
+        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            choice = PAUSE_ITEMS[self.pause_index]
+            if choice == "Resume":
+                self.paused = False
+            elif choice == "Quit":
+                self.running = False
 
     # ---------------- 갱신 ----------------
     def update(self):
@@ -164,8 +179,14 @@ class Game:
 
     def draw_pause(self):
         """일시정지 화면."""
+        cx = WIDTH // 2
         self.screen.blit(self.dark_shade, (0, 0))
-        self.draw_text("PAUSED", self.big_font, YELLOW, center=(WIDTH // 2, HEIGHT // 2))
+        self.draw_text("PAUSED", self.big_font, YELLOW, center=(cx, 200))
+        for i, item in enumerate(PAUSE_ITEMS):
+            selected = i == self.pause_index
+            label = f"> {item} <" if selected else item
+            self.draw_text(label, self.font, YELLOW if selected else WHITE, center=(cx, 300 + i * 50))
+        self.draw_text("UP/DOWN + ENTER   ESC : Resume", self.font, WHITE, center=(cx, 540))
 
     def draw_title(self):
         """시작 화면: 게임 이름, 플레이어 그림, 조작 안내, 깜빡이는 시작 안내."""
