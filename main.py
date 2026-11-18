@@ -81,7 +81,7 @@ class Game:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if self.game_over:
-                        self.running = False
+                        self.go_to_title()
                     else:
                         self.paused = True
                         self.pause_index = 0
@@ -115,8 +115,15 @@ class Game:
             choice = PAUSE_ITEMS[self.pause_index]
             if choice == "Resume":
                 self.paused = False
+            elif choice == "Main Menu":
+                self.go_to_title()
             elif choice == "Quit":
                 self.running = False
+
+    def go_to_title(self):
+        """메인 메뉴(시작 화면)로 돌아간다. 판은 처음 상태로 돌아가고 최고 점수는 그대로 남는다."""
+        self.on_title = True
+        self.reset()
 
     # ---------------- 갱신 ----------------
     def update(self):
