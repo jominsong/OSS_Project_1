@@ -5,7 +5,7 @@ import pygame
 
 from settings import (
     WIDTH, HEIGHT, FPS, TITLE, HIGHSCORE_FILE,
-    ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS,
+    ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS, POWER_MAX,
     WHITE, YELLOW, RED, HUD_SHADE, GAME_OVER_SHADE,
 )
 from entities import Background, Player, Enemy
@@ -43,7 +43,7 @@ class Game:
         pygame.time.set_timer(SPAWN_ENEMY, ENEMY_SPAWN_MS)
         self.background = Background()
         # 밝은 배경 위에서도 글자가 보이도록 깔아 줄 반투명 어두운 막
-        self.hud_shade = pygame.Surface((WIDTH, 44), pygame.SRCALPHA)
+        self.hud_shade = pygame.Surface((WIDTH, 70), pygame.SRCALPHA)  # 둘째 줄(POWER)까지 덮도록 높이 70
         self.hud_shade.fill(HUD_SHADE)
         self.dark_shade = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)  # 시작·게임 오버 화면용
         self.dark_shade.fill(GAME_OVER_SHADE)
@@ -67,6 +67,7 @@ class Game:
         self.space_down = False  # 게임 중에 스페이스를 새로 눌러 연속 발사가 켜진 상태인가
         self.fire_cooldown = 0  # 다음 연속 발사까지 남은 프레임
         self.hunt_frames = HUNT_SECONDS * FPS  # 사냥 구간 남은 시간(프레임). 프레임으로 세서 일시정지 중엔 멈춘다
+        self.power = 0  # 파워업 레벨. 사냥 구간 동안 적을 잡을 때마다 오른다
 
     # ---------------- 입력 ----------------
     def handle_events(self):
@@ -164,7 +165,9 @@ class Game:
 
         hits = pygame.sprite.groupcollide(self.bullets, self.enemies, True, True)
         killed = {enemy for enemies in hits.values() for enemy in enemies}  # 총알 둘이 한 적을 맞혀도 한 번만 셈
-        self.score += len(killed) * SCORE_PER_ENEMY
+        self.score += len(killed) * SCORE_PER_ENEMY  # 일반 적 점수는 파워업과 상관없이 항상 같음
+        if self.hunt_frames > 0:
+            self.power = min(POWER_MAX, self.power + len(killed))
 
         self.lives -= len(pygame.sprite.spritecollide(self.player, self.enemies, True))
 
@@ -203,6 +206,7 @@ class Game:
         self.draw_text(f"LIVES: {self.lives}", self.font, WHITE, topright=(WIDTH - 10, 10))
         self.draw_text(f"SCORE: {self.score}", self.font, WHITE, topleft=(10, 10))
         self.draw_hunt_timer()
+        self.draw_text(f"POWER: {self.power}/{POWER_MAX}", self.font, YELLOW if self.power else WHITE, topleft=(10, 38))
         if self.game_over:
             self.draw_game_over()
         if self.paused:
