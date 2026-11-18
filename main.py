@@ -5,7 +5,7 @@ import pygame
 
 from settings import (
     WIDTH, HEIGHT, FPS, TITLE, HIGHSCORE_FILE,
-    ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS, POWER_MAX,
+    ENEMY_SPAWN_MS, START_LIVES, SCORE_PER_ENEMY, FIRE_INTERVAL, HUNT_SECONDS, POWER_MAX, BULLET_SPREAD,
     WHITE, YELLOW, RED, HUD_SHADE, GAME_OVER_SHADE,
 )
 from entities import Background, Player, Enemy
@@ -98,10 +98,13 @@ class Game:
                     self.reset()
 
     def fire_bullet(self):
-        """플레이어 위치에서 총알 한 발을 쏜다."""
-        bullet = self.player.shoot()
-        self.bullets.add(bullet)
-        self.all_sprites.add(bullet)
+        """총알을 쏜다. 파워업 레벨이 0이면 한 발, 레벨이 오를 때마다 한 발씩 늘어 나란히 나간다(최대 5발)."""
+        count = 1 + self.power
+        for i in range(count):
+            bullet = self.player.shoot()
+            bullet.rect.centerx += round((i - (count - 1) / 2) * BULLET_SPREAD)  # 가운데를 기준으로 좌우 대칭
+            self.bullets.add(bullet)
+            self.all_sprites.add(bullet)
 
     def update_autofire(self, keys):
         """스페이스를 누르고 있는 동안 FIRE_INTERVAL 프레임마다 총알을 더 쏜다."""
